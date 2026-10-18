@@ -679,3 +679,9 @@ td {
 .picture-link-form { display: grid; gap: 0.75rem; margin-top: 1rem; }
 .picture-help { margin-bottom: 1rem; color: var(--gray-600); }
 .picture-card .btn { text-decoration: none; }
+/* Hero content previews use the public site's image/text/button layout. */
+.hero-previews { display: flex; flex-wrap: wrap; gap: 24px; margin: 24px 0; }
+.hero-preview { flex: 1 1 400px; max-width: 720px; overflow-wrap: anywhere; }
+.hero-preview.mobile { flex: 0 1 320px; }
+.hero-preview img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+.hero-preview.mobile img { aspect-ratio: 4 / 3; }
