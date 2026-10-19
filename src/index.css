@@ -685,3 +685,10 @@ td {
 .hero-preview.mobile { flex: 0 1 320px; }
 .hero-preview img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
 .hero-preview.mobile img { aspect-ratio: 4 / 3; }
+.video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 1.25rem; }
+.video-image { display: block; width: 100%; aspect-ratio: 16 / 9; background: #0b1730; object-fit: contain; }
+.video-preview { display: block; width: min(100%, 640px); max-height: 360px; margin-top: 1rem; background: #0b1730; border-radius: 8px; }
+.video-caption { margin-bottom: 1rem; overflow-wrap: anywhere; }
+.video-link-form { display: grid; gap: 0.75rem; margin-top: 1rem; }
+.video-help { margin-bottom: 1rem; color: var(--gray-600); }
+.video-card .btn { text-decoration: none; }

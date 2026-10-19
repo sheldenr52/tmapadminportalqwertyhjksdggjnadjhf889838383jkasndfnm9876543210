@@ -34,6 +34,8 @@ export interface Business {
   lon: number | null
   categories: string[]
   is_active: boolean
+  launch_phase?: 'live' | 'demo'
+  demo_revision?: string
   is_featured?: boolean
   logo_url: string | null
   created_at: string

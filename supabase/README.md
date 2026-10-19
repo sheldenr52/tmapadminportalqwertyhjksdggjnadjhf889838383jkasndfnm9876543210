@@ -1,3 +1,21 @@
+Demo profile sharing: see `../DEMO_PROFILES_SETUP.md`. Install
+`demo_profiles_setup.sql` after the business phase setup, deploy the
+`business-demo` Edge Function, and deploy both admin and public website changes.
+Copy demo link creates a random link with a no-login client preview. Revoke link
+invalidates it; phase and Active status changes also invalidate prior links.
+Verify with `node tests/demo-profiles.mjs`. Production project access is denied.
+
+Business phase: install `admin_business_phase_setup.sql` after `admin_setup.sql`
+in the project SQL Editor, then refresh All Listings. This adds a Live/Demo
+toggle and phase filter. Existing and new businesses default to Live; admins
+can switch each listing to Demo. Changes save immediately. Phase is a tracking
+label until the demo profile setup above is installed. The current admin app
+disables phase controls until both setups are present.
+Existing listing policies are preserved and only admins can change phase.
+Controls stay disabled if the column is missing. The connected Supabase account
+denied project access, so this setup has not been installed remotely.
+Verify locally with `node tests/business-phase.mjs` and `npm.cmd run build`.
+
 User editing: All Users now includes **Edit details** for email and names.
 Deploy the `admin-update-user` Edge Function before saving edits.
 See `../USER_EDIT_SETUP.md` for deployment and verification instructions.

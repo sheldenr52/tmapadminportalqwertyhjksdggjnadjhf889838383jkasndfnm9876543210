@@ -4,10 +4,11 @@ import { AdminBusinessList } from './AdminBusinessList'
 import { AdminUserList } from './AdminUserList'
 import { AdminCreateUser } from './AdminCreateUser'
 import { AdminBusinessCreate } from './AdminBusinessCreate'
+import { AdminVideos } from './AdminVideos'
 import { AdminPictures } from './AdminPictures'
 import { AdminHomeHero } from './AdminHomeHero'
 
-type Tab = 'listings' | 'users' | 'create-listing' | 'create-user' | 'pictures' | 'home-hero'
+type Tab = 'listings' | 'users' | 'create-listing' | 'create-user' | 'pictures' | 'home-hero' | 'videos'
 
 interface AdminUser {
   id: string
@@ -103,6 +104,7 @@ const Sidebar: React.FC<{
   onSignOut: () => void
 }> = ({ activeTab, onTabChange, adminEmail, onSignOut }) => {
   const navItems: { tab: Tab; icon: string; label: string }[] = [
+    { tab: 'videos', icon: '?', label: 'Promotional Videos' },
     { tab: 'home-hero', icon: '▣', label: 'Home Hero Banners' },
     { tab: 'pictures', icon: '▧', label: 'Pictures' },
     { tab: 'listings',       icon: '🏢', label: 'All Listings' },
@@ -142,6 +144,7 @@ const Sidebar: React.FC<{
 // ── Tab titles ─────────────────────────────────────────────────────────────
 const TAB_TITLES: Record<Tab, string> = {
   'home-hero': 'Home Hero Banners',
+  videos: 'Promotional Videos',
   pictures: 'Pictures',
   listings: 'All Business Listings',
   users: 'All Users',
@@ -232,6 +235,7 @@ export const AdminPanel: React.FC = () => {
         <div className="page-body">
           {activeTab === 'home-hero' && <AdminHomeHero />}
           {activeTab === 'pictures' && <AdminPictures />}
+          {activeTab === 'videos' && <AdminVideos />}
           {activeTab === 'listings'       && <AdminBusinessList onNavigateToCreate={() => setActiveTab('create-listing')} />}
           {activeTab === 'users'          && <AdminUserList onNavigateToCreate={() => setActiveTab('create-user')} />}
           {activeTab === 'create-listing' && <AdminBusinessCreate onCreated={() => setActiveTab('listings')} />}

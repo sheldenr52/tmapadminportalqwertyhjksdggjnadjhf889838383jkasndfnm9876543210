@@ -3,6 +3,7 @@ import { supabase, Business } from '../../supabase'
 import { AdminBusinessEdit } from './AdminBusinessEdit'
 import { AdminSubscription } from './AdminSubscription'
 import { AdminListingStats } from './AdminListingStats'
+import { AdminDemoLink } from './AdminDemoLink'
 
 const PAGE_SIZE = 20
 
@@ -24,6 +25,15 @@ export const AdminBusinessList: React.FC<Props> = ({ onNavigateToCreate }) => {
   const [statsTarget, setStatsTarget] = useState<Business | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [savingPhase, setSavingPhase] = useState<Set<string>>(new Set())
+  const [phaseError, setPhaseError] = useState<string | null>(null)
+  const [filterPhase, setFilterPhase] = useState<'all' | 'live' | 'demo'>('all')
+  const [demoReady, setDemoReady] = useState(false)
+
+  useEffect(() => {
+    void supabase.from('business_demo_links').select('business_id').limit(0)
+      .then(({ error }) => setDemoReady(!error))
+  }, [])
 
   const fetchBusinesses = useCallback(async () => {
     setLoading(true)
@@ -38,6 +48,7 @@ export const AdminBusinessList: React.FC<Props> = ({ onNavigateToCreate }) => {
     if (search.trim()) {
       query = query.ilike('name', `%${search.trim()}%`)
     }
+    if (filterPhase !== 'all') query = query.eq('launch_phase', filterPhase)
     if (filterActive === 'active') {
       query = query.eq('is_active', true)
     } else if (filterActive === 'inactive') {
@@ -53,7 +64,7 @@ export const AdminBusinessList: React.FC<Props> = ({ onNavigateToCreate }) => {
       setTotal(count ?? 0)
     }
     setLoading(false)
-  }, [page, search, filterActive])
+  }, [page, search, filterActive, filterPhase])
 
   useEffect(() => {
     fetchBusinesses()
@@ -62,7 +73,25 @@ export const AdminBusinessList: React.FC<Props> = ({ onNavigateToCreate }) => {
   // Reset page when filters change
   useEffect(() => {
     setPage(0)
-  }, [search, filterActive])
+  }, [search, filterActive, filterPhase])
+
+  const handleTogglePhase = async (biz: Business) => {
+    if (savingPhase.has(biz.id) || !biz.launch_phase || !demoReady) return
+    setSavingPhase(prev => new Set(prev).add(biz.id))
+    setPhaseError(null)
+    try {
+      const { data, error: updateError } = await supabase.from('businesses')
+        .update({ launch_phase: biz.launch_phase === 'live' ? 'demo' : 'live', updated_at: new Date().toISOString() })
+        .eq('id', biz.id).select('id, launch_phase').single()
+      if (updateError) throw updateError
+      if (!data) throw new Error('No business was updated. Check your permissions.')
+      await fetchBusinesses()
+    } catch (err) {
+      setPhaseError(`Could not update phase for ${biz.name}: ${(err as { message?: string }).message || 'Please try again.'}`)
+    } finally {
+      setSavingPhase(prev => { const next = new Set(prev); next.delete(biz.id); return next })
+    }
+  }
 
   const handleToggleActive = async (biz: Business) => {
     const newStatus = !biz.is_active
@@ -170,6 +199,13 @@ export const AdminBusinessList: React.FC<Props> = ({ onNavigateToCreate }) => {
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
             </select>
+            <select aria-label="Filter by business phase" value={filterPhase}
+              onChange={e => setFilterPhase(e.target.value as typeof filterPhase)}
+              style={{ padding: '0.5rem 0.85rem', borderRadius: 8, border: '1px solid var(--gray-300)', fontFamily: 'inherit' }}>
+              <option value="all">All phases</option>
+              <option value="live">Live</option>
+              <option value="demo">Demo</option>
+            </select>
             <button className="btn btn-primary btn-sm" onClick={onNavigateToCreate}>
               ➕ New Listing
             </button>
@@ -177,6 +213,16 @@ export const AdminBusinessList: React.FC<Props> = ({ onNavigateToCreate }) => {
         </div>
 
         {error && <div className="alert alert-error" style={{ margin: '1rem' }}>{error}</div>}
+        {phaseError && <div role="alert" className="alert alert-error" style={{ margin: '1rem' }}>{phaseError}</div>}
+        <p style={{ margin: '1rem', color: 'var(--gray-600)', fontSize: '0.875rem' }}>
+          Demo profiles are unlisted and shared using a special link. Live profiles use normal public visibility.
+          Switching phase or changing Active status revokes existing demo links.
+        </p>
+        {(!demoReady || businesses.some(b => !b.launch_phase)) && (
+          <div role="status" className="alert alert-error" style={{ margin: '1rem' }}>
+            Live/Demo and share links need the business phase and demo profiles database setup installed before use.
+          </div>
+        )}
         {deleteError && <div role="alert" className="alert alert-error" style={{ margin: '1rem' }}>{deleteError}</div>}
         <p style={{ margin: '1rem', color: 'var(--gray-600)', fontSize: '0.875rem' }}>
           Turn Featured on to include a business in the featured strip. Only active businesses appear. Changes save automatically.
@@ -206,6 +252,8 @@ export const AdminBusinessList: React.FC<Props> = ({ onNavigateToCreate }) => {
                   <th>Categories</th>
                   <th>Address</th>
                   <th>Status</th>
+                  <th>Phase</th>
+                  <th>Client preview</th>
                   <th>Featured</th>
                   <th>Created</th>
                   <th>Renewal &amp; trial</th>
@@ -257,6 +305,22 @@ export const AdminBusinessList: React.FC<Props> = ({ onNavigateToCreate }) => {
                       </label>
                     </td>
                     <td>
+                      <label className="toggle-switch" title="Switch between Live and Demo phase">
+                        <input type="checkbox" role="switch" aria-label={`Live phase for ${biz.name}`}
+                          checked={biz.launch_phase === 'live'}
+                          disabled={!demoReady || savingPhase.has(biz.id) || !biz.launch_phase || deletingId === biz.id}
+                          onChange={() => handleTogglePhase(biz)} />
+                        <div className="toggle-track"><div className="toggle-thumb" /></div>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 600, color: biz.launch_phase === 'live' ? 'var(--success)' : '#a16207' }}>
+                          {savingPhase.has(biz.id) ? 'Saving...' : biz.launch_phase === 'live' ? 'Live' : biz.launch_phase === 'demo' ? 'Demo' : 'Setup needed'}
+                        </span>
+                      </label>
+                    </td>
+                    <td>
+                      <AdminDemoLink key={`${biz.id}-${biz.launch_phase}-${biz.is_active}`}
+                        business={biz} disabled={!demoReady || savingPhase.has(biz.id) || deletingId === biz.id} />
+                    </td>
+                    <td>
                       <label className="toggle-switch" title="Include this business in the featured strip">
                         <input
                           type="checkbox"
@@ -285,7 +349,7 @@ export const AdminBusinessList: React.FC<Props> = ({ onNavigateToCreate }) => {
                         <button
                           className="btn btn-danger btn-sm"
                           aria-label={`Delete ${biz.name}`}
-                          disabled={deletingId !== null || savingFeatured.has(biz.id)}
+                          disabled={deletingId !== null || savingFeatured.has(biz.id) || savingPhase.has(biz.id)}
                           onClick={() => handleDelete(biz)}
                         >
                           {deletingId === biz.id ? 'Deleting...' : 'Delete'}

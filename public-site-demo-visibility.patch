@@ -1,0 +1,39 @@
+diff --git a/src/BusinessContext.tsx b/src/BusinessContext.tsx
+--- a/src/BusinessContext.tsx
++++ b/src/BusinessContext.tsx
+@@ -189,7 +189,7 @@
+       
+       const { data, error } = await supabase
+         .from('businesses')
+-        .select('*');
++        .select('*').eq('launch_phase', 'live');
+       
+       if (error) {
+         console.error('Error fetching businesses:', error);
+@@ -435,6 +435,7 @@
+   const loadBusinessFromUrl = useCallback(async (businessId: string) => {
+     try {
+       dispatch({ type: 'SET_BUSINESSES_LOADING', payload: true });
++      dispatch({ type: 'SET_SELECTED_BUSINESS', payload: null });
+       console.log('Loading business from URL with ID:', businessId);
+       
+       // First, check if the business is already in our loaded businesses
+@@ -457,6 +458,7 @@
+       const { data, error } = await supabase
+         .from('businesses')
+         .select('*')
++        .eq('launch_phase', 'live')
+         .eq('id', businessId)
+         .single();
+       
+diff --git a/src/components/FeaturedCarousel.tsx b/src/components/FeaturedCarousel.tsx
+--- a/src/components/FeaturedCarousel.tsx
++++ b/src/components/FeaturedCarousel.tsx
+@@ -38,6 +38,7 @@
+         .select('id, name, categories, description, address, contact_phone, logo_url')
+         .eq('is_active', true)
+         .eq('is_featured', true)
++        .eq('launch_phase', 'live')
+         .order('name', { ascending: true })
+         .order('id', { ascending: true })
+         .limit(20);
