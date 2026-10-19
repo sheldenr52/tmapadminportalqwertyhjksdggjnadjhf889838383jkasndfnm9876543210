@@ -50,6 +50,49 @@ BEGIN
 END;
 $$;
 
+-- Legacy media stores business_id as text without a foreign key, so it is not
+-- discovered above. Keep public live photos and owner editing working.
+DO $$
+BEGIN
+  IF to_regclass('public.business_media_and_posts') IS NOT NULL THEN
+    ALTER TABLE public.business_media_and_posts ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "Public can read business media" ON public.business_media_and_posts;
+    CREATE POLICY "Public can read business media" ON public.business_media_and_posts
+      FOR SELECT TO anon, authenticated USING (true);
+    DROP POLICY IF EXISTS "Hide demo business metadata" ON public.business_media_and_posts;
+    CREATE POLICY "Hide demo business metadata" ON public.business_media_and_posts AS RESTRICTIVE
+      FOR SELECT TO anon, authenticated USING (EXISTS (
+        SELECT 1 FROM public.businesses b WHERE b.id::text = business_media_and_posts.business_id::text
+        AND (b.launch_phase = 'live' OR b.owner_id = (SELECT auth.uid()) OR (SELECT public.is_admin()))));
+    DROP POLICY IF EXISTS "Owners manage business media" ON public.business_media_and_posts;
+    CREATE POLICY "Owners manage business media" ON public.business_media_and_posts
+      FOR ALL TO authenticated USING (EXISTS (
+        SELECT 1 FROM public.businesses b WHERE b.id::text = business_media_and_posts.business_id::text
+        AND (b.owner_id = (SELECT auth.uid()) OR (SELECT public.is_admin()))))
+      WITH CHECK (EXISTS (
+        SELECT 1 FROM public.businesses b WHERE b.id::text = business_media_and_posts.business_id::text
+        AND (b.owner_id = (SELECT auth.uid()) OR (SELECT public.is_admin()))));
+  END IF;
+END;
+$$;
+
+-- The legacy owner-executed view otherwise bypasses the new row policy.
+-- Filter explicitly even for signed-in owners, preserving its columns/grants.
+DO $$
+DECLARE definition text;
+BEGIN
+  IF to_regclass('public.business_listings') IS NOT NULL THEN
+    SELECT pg_get_viewdef('public.business_listings'::regclass, true) INTO definition;
+    IF position('demo_visibility_gate' in definition) = 0 THEN
+      EXECUTE 'CREATE OR REPLACE VIEW public.business_listings AS SELECT original_listing.* FROM ('
+        || rtrim(definition, E'; \n\r\t')
+        || ') original_listing JOIN public.businesses demo_visibility_gate ON demo_visibility_gate.id = original_listing.id WHERE demo_visibility_gate.launch_phase = ''live''';
+    END IF;
+    ALTER VIEW public.business_listings SET (security_invoker = true);
+  END IF;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION public.invalidate_business_demo_link()
 RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER SET search_path = '' AS $$
 BEGIN
@@ -81,8 +124,8 @@ BEGIN
       AND biz.launch_phase = 'demo' AND biz.is_active;
   IF NOT FOUND THEN RETURN NULL; END IF;
   IF to_regclass('public.business_media_and_posts') IS NOT NULL THEN
-    EXECUTE 'SELECT coalesce(jsonb_agg(m.photo_url ORDER BY m.created_at), ''[]''::jsonb) FROM public.business_media_and_posts m WHERE m.business_id = $1 AND m.media_type = ''photo'' AND m.photo_url IS NOT NULL'
-      INTO photos USING b.id;
+    EXECUTE 'SELECT coalesce(jsonb_agg(m.photo_url ORDER BY m.created_at), ''[]''::jsonb) FROM public.business_media_and_posts m WHERE m.business_id::text = $1 AND m.media_type = ''photo'' AND m.photo_url IS NOT NULL'
+      INTO photos USING b.id::text;
   END IF;
   -- Older/admin uploads have no media table record. Resolve only files in this
   -- business folder, including those uploaded by an administrator.

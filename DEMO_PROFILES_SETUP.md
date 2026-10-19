@@ -1,8 +1,12 @@
 # Demo profiles and client sharing
 
-Implementation is ready locally. It is **not activated in production**: the
-connected Supabase account denied access to project `bouxpfsfhetcqcrqflfk`.
-No business phase or live database record was changed during development.
+The database setup and `business-demo` function are installed in production in
+project `bouxpfsfhetcqcrqflfk`. Live anonymous checks confirm the existing Demo
+profile is hidden from public businesses, the legacy listings view and related
+metadata, while three Live businesses remain available. Its valid share token
+returns the preview and five photos without login. Invalid tokens are rejected;
+anonymous access to token records and the privileged resolver RPC is denied.
+Existing client links and business phases were preserved.
 
 ## Installation
 
@@ -58,7 +62,9 @@ install the complete setup before sharing client previews.
 The SQL installs a restrictive business SELECT policy, preserving owners'
 existing editor access and administrators' access. It restricts related
 metadata tables discovered through single-column foreign keys to businesses.
-This includes the known gallery, media/post and video tables. Existing
+This includes the known gallery and video tables. The legacy text-ID media/post
+table has explicit privacy and owner-write policies. The legacy listings view
+has an explicit Live filter and uses caller permissions (`security_invoker`). Existing
 permissive public policies cannot override the restrictive policy. Related
 tables without foreign keys, tables added after installation, and existing
 views or privileged RPCs must be reviewed against the actual production
@@ -106,4 +112,6 @@ Before sending a real client link, verify in a signed-out browser that the demo
 appears only through its special URL, ordinary profile IDs return no demo,
 public search/map/featured/gallery surfaces omit it, and Revoke link makes a
 fresh request fail. Repeat with a normal owner account on the public finder.
-Production verification remains pending until project access is available.
+Production API verification passed. Browser layout verification was unavailable
+in this session; deploy the current admin build and refresh All Listings to use
+the client preview controls.

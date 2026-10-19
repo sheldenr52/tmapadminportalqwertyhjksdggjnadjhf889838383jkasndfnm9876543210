@@ -32,7 +32,9 @@ try {
     GRANT SELECT ON businesses TO anon;
     GRANT SELECT, UPDATE, INSERT ON businesses TO authenticated, service_role;
     CREATE TABLE picture_gallery (id int, business_id uuid REFERENCES businesses(id), caption text);
-    CREATE TABLE business_media_and_posts (id int, business_id uuid REFERENCES businesses(id), photo_url text, media_type text, created_at timestamptz DEFAULT now());
+    CREATE TABLE business_media_and_posts (id int, business_id text, photo_url text, media_type text, created_at timestamptz DEFAULT now());
+    CREATE VIEW business_listings AS SELECT b.id, b.name FROM businesses b WHERE b.is_active = true;
+    GRANT SELECT ON business_listings TO anon, authenticated;
     CREATE TABLE profile_videos (business_id uuid REFERENCES businesses(id), storage_path text, youtube_id text, caption text);
     CREATE TABLE storage.objects (bucket_id text, name text);
     INSERT INTO picture_gallery VALUES (1, '${live}', 'Live photo'), (2, '${demo}', 'Draft photo'), (3, null, 'General');
@@ -42,6 +44,7 @@ try {
     CREATE POLICY old_public_read ON business_media_and_posts FOR SELECT TO anon, authenticated USING (true);
     CREATE POLICY old_public_read ON profile_videos FOR SELECT TO anon, authenticated USING (true);
     GRANT SELECT ON picture_gallery, business_media_and_posts, profile_videos TO anon, authenticated, service_role;
+    GRANT INSERT, UPDATE, DELETE ON business_media_and_posts TO authenticated;
     GRANT SELECT ON storage.objects TO service_role;
   `)
   await db.exec(await file('../supabase/admin_business_phase_setup.sql'))
@@ -55,6 +58,7 @@ try {
   await role('anon')
   assert.deepEqual((await db.query('SELECT name FROM businesses')).rows, [{ name: 'Live' }])
   assert.equal((await db.query(`SELECT * FROM businesses WHERE id = '${demo}'`)).rows.length, 0)
+  assert.deepEqual((await db.query('SELECT name FROM business_listings')).rows, [{ name: 'Live' }])
   assert.equal((await db.query('SELECT * FROM picture_gallery')).rows.length, 2)
   assert.equal((await db.query('SELECT * FROM business_media_and_posts')).rows.length, 0)
   assert.equal((await db.query('SELECT * FROM profile_videos')).rows.length, 0)
@@ -67,6 +71,9 @@ try {
   await role('authenticated', owner)
   assert.equal((await db.query('SELECT * FROM businesses')).rows.length, 2)
   await db.exec(`UPDATE businesses SET description = 'Owner may edit' WHERE id = '${demo}'`)
+  await db.exec(`INSERT INTO business_media_and_posts (id,business_id,media_type) VALUES (2,'${demo}','post')`)
+  await assert.rejects(db.exec("INSERT INTO business_media_and_posts (id,business_id,media_type) VALUES (3,'not-an-owned-business','post')"), /row-level security/)
+  await db.exec('DELETE FROM business_media_and_posts WHERE id = 2')
   await assert.rejects(db.exec(`UPDATE businesses SET launch_phase = 'live' WHERE id = '${demo}'`), /Only administrators/)
   await role('service_role')
   const result = await scalar(`SELECT resolve_business_demo('${token}')`)
