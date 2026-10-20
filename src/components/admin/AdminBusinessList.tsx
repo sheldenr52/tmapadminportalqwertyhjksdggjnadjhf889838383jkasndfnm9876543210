@@ -4,6 +4,7 @@ import { AdminBusinessEdit } from './AdminBusinessEdit'
 import { AdminSubscription } from './AdminSubscription'
 import { AdminListingStats } from './AdminListingStats'
 import { AdminDemoLink } from './AdminDemoLink'
+import { AdminProfilePdf } from './AdminProfilePdf'
 
 const PAGE_SIZE = 20
 
@@ -319,6 +320,7 @@ export const AdminBusinessList: React.FC<Props> = ({ onNavigateToCreate }) => {
                     <td>
                       <AdminDemoLink key={`${biz.id}-${biz.launch_phase}-${biz.is_active}`}
                         business={biz} disabled={!demoReady || savingPhase.has(biz.id) || deletingId === biz.id} />
+                      <AdminProfilePdf business={biz} />
                     </td>
                     <td>
                       <label className="toggle-switch" title="Include this business in the featured strip">
